@@ -7,8 +7,8 @@ struct PromptNoteDetailView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(note: PromptNote) {
-        _viewModel = StateObject(wrappedValue: PromptNoteDetailViewModel(note: note))
+    init(note: PromptNote, store: PromptNoteStore) {
+        _viewModel = StateObject(wrappedValue: PromptNoteDetailViewModel(note: note, store: store))
     }
 
     var body: some View {
@@ -28,85 +28,124 @@ struct PromptNoteDetailView: View {
                     .font(.title3.bold())
                     .textFieldStyle(.plain)
 
+                Button {
+                    withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.6)) {
+                        viewModel.toggleEdit()
+                    }
+                } label: {
+                    Image(systemName: viewModel.isEditing ? "checkmark.circle.fill" : "pencil.circle")
+                        .imageScale(.large)
+                        .foregroundStyle(viewModel.isEditing ? .green : .secondary)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain)
             }
 
-            ScrollView(.vertical) {
-                CodeText(viewModel.note.content)
-                    .highlightLanguage(.markdown)
+            // Content — swap between read-only and editable
+            if viewModel.isEditing {
+                TextEditor(text: $viewModel.draftContent)
                     .font(.system(.body, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .opacity(contentAppeared ? 1 : 0)
-                    .offset(y: contentAppeared ? 0 : 8)
-            }
-            .onAppear {
-                guard !contentAppeared else { return }
-                withAnimation(reduceMotion ? .none : .spring(response: 0.4, dampingFraction: 0.9).delay(0.15)) {
-                    contentAppeared = true
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 8))
+                    .transition(.opacity)
+            } else {
+                ScrollView(.vertical) {
+                    CodeText(viewModel.note.content)
+                        .highlightLanguage(.markdown)
+                        .font(.system(.body, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .opacity(contentAppeared ? 1 : 0)
+                        .offset(y: contentAppeared ? 0 : 8)
+                }
+                .transition(.opacity)
+                .onAppear {
+                    guard !contentAppeared else { return }
+                    withAnimation(reduceMotion ? .none : .spring(response: 0.4, dampingFraction: 0.9).delay(0.15)) {
+                        contentAppeared = true
+                    }
                 }
             }
 
-            Button {
-                viewModel.copy()
-            } label: {
-                Label(viewModel.didCopy ? "Copied" : "Copy Prompt",
-                      systemImage: viewModel.didCopy ? "checkmark.circle.fill" : "doc.on.doc")
-                    .frame(maxWidth: .infinity)
-                    .contentTransition(.symbolEffect(.replace))
+            // Copy button — hidden during editing
+            if !viewModel.isEditing {
+                CopyPromptButton(didCopy: viewModel.didCopy, reduceMotion: reduceMotion) {
+                    viewModel.copy()
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            .buttonStyle(CopyButtonStyle(didCopy: viewModel.didCopy, reduceMotion: reduceMotion))
-            .controlSize(.large)
-            .accessibilityLabel("Copy content")
         }
         .padding(.horizontal)
         .padding(.bottom, 16)
         .background(.regularMaterial)
         .cornerRadius(16, corners: [.topLeft, .topRight])
+        .animation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isEditing)
     }
 }
 
-// MARK: - Copy Button Style
-/// Prominent button with press squash and success scale bump.
-struct CopyButtonStyle: ButtonStyle {
+// MARK: - Copy Prompt Button
+struct CopyPromptButton: View {
     let didCopy: Bool
     let reduceMotion: Bool
+    let action: () -> Void
 
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.body.weight(.semibold))
-            .foregroundStyle(.white)
+    @State private var isPressed = false
+
+    private let pressAnim: Animation = .spring(response: 0.12, dampingFraction: 0.9)
+    private let overshootAnim: Animation = .spring(response: 0.4, dampingFraction: 0.55)
+    private let settleAnim: Animation = .spring(response: 0.5, dampingFraction: 0.8)
+
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                    .contentTransition(.symbolEffect(.replace.offUp))
+                    .font(.body.weight(.semibold))
+
+                Text(didCopy ? "Copied" : "Copy Prompt")
+                    .contentTransition(.numericText())
+                    .font(.body.weight(.semibold))
+            }
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(didCopy ? Color.green : Color.accentColor, in: RoundedRectangle(cornerRadius: 12))
-            .scaleEffect(scaleValue(isPressed: configuration.isPressed))
-            .animation(
-                reduceMotion ? .none :
-                configuration.isPressed
-                    ? .spring(response: 0.15, dampingFraction: 0.9)
-                    : .spring(response: 0.35, dampingFraction: 0.6),
-                value: configuration.isPressed
-            )
-            .animation(
-                reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.6),
-                value: didCopy
-            )
-    }
-
-    private func scaleValue(isPressed: Bool) -> CGFloat {
-        if isPressed && !reduceMotion { return 0.97 }
-        if didCopy && !reduceMotion { return 1.05 }
-        return 1.0
+            .foregroundStyle(.white)
+            .background {
+                Capsule()
+                    .fill(didCopy ? Color.green : Color.accentColor)
+                    .animation(reduceMotion ? .none : settleAnim, value: didCopy)
+            }
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(reduceMotion ? 1.0 : (isPressed ? 0.96 : 1.0))
+        .animation(reduceMotion ? .none : (isPressed ? pressAnim : overshootAnim), value: isPressed)
+        .animation(reduceMotion ? .none : overshootAnim, value: didCopy)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isPressed { isPressed = true }
+                }
+                .onEnded { _ in isPressed = false }
+        )
+        .accessibilityLabel("Copy content")
     }
 }
 
 #Preview {
     struct PreviewWrapper: View {
         @State private var showingSheet = true
+        @State private var store = PromptNoteStore(notes: PromptNoteMockList.all)
         var body: some View {
             Color.clear
                 .sheet(isPresented: $showingSheet) {
-                    PromptNoteDetailView(note: PromptNote(id: UUID(), title: "Example Prompt", content: "print(\"Hello, world!\")"))
-                        .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
+                    PromptNoteDetailView(
+                        note: PromptNoteMockList.all.first!,
+                        store: store
+                    )
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
                 }
         }
     }

@@ -3,19 +3,18 @@ import HighlightSwift
 
 struct PromptNoteView: View {
 
-    @StateObject private var viewModel: PromptNoteViewModel
+    let note: PromptNote
+    let appearIndex: Int
+
     @State private var isPresentingDetail = false
     @State private var appeared = false
+    @State private var didCopy = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(PromptNoteStore.self) private var store
 
-    private let appearIndex: Int
-
-    // MARK: - Init
     init(note: PromptNote, appearIndex: Int = 0) {
-        _viewModel = StateObject(
-            wrappedValue: PromptNoteViewModel(note: note)
-        )
+        self.note = note
         self.appearIndex = appearIndex
     }
 
@@ -43,7 +42,7 @@ struct PromptNoteView: View {
             }
         }
         .sheet(isPresented: $isPresentingDetail) {
-            PromptNoteDetailView(note: viewModel.note)
+            PromptNoteDetailView(note: note, store: store)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
@@ -55,7 +54,7 @@ struct PromptNoteView: View {
 
             // Header
             HStack {
-                Text(viewModel.note.title)
+                Text(note.title)
                     .font(.title2)
                     .bold()
                     .lineLimit(1)
@@ -65,13 +64,13 @@ struct PromptNoteView: View {
                 Spacer()
 
                 Button {
-                    viewModel.copy()
+                    copyToClipboard()
                 } label: {
-                    Image(systemName: viewModel.didCopy
+                    Image(systemName: didCopy
                           ? "checkmark.circle.fill"
                           : "doc.on.doc")
                         .imageScale(.medium)
-                        .foregroundStyle(viewModel.didCopy ? .green : .primary)
+                        .foregroundStyle(didCopy ? .green : .primary)
                         .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
@@ -79,7 +78,7 @@ struct PromptNoteView: View {
 
             // Scrollable prompt content
             ScrollView {
-                CodeText(viewModel.note.content)
+                CodeText(note.content)
                     .highlightLanguage(.markdown)
                     .font(Font.system(.subheadline, design: .monospaced))
                     .textSelection(.enabled)
@@ -90,6 +89,15 @@ struct PromptNoteView: View {
         .padding(24)
         .background(Color(.systemGray6))
         .cornerRadius(24)
+    }
+
+    private func copyToClipboard() {
+        UIPasteboard.general.string = note.content
+        didCopy = true
+        Task {
+            try? await Task.sleep(for: .seconds(1.2))
+            didCopy = false
+        }
     }
 }
 
@@ -105,12 +113,5 @@ struct PromptNoteView: View {
             """
         )
     )
-}
-#Preview("List – Mock Prompts") {
-    List(PromptNoteMockList.all, id: \ .id) { note in
-        PromptNoteView(note: note)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-    }
-    .listStyle(.plain)
+    .environment(PromptNoteStore(notes: PromptNoteMockList.all))
 }

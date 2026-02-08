@@ -8,12 +8,12 @@
 import SwiftUI
 
 struct ContentView: View {
-    private let notes = PromptNoteMockList.all
+    @Environment(PromptNoteStore.self) private var store
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
+                ForEach(Array(store.notes.enumerated()), id: \.element.id) { index, note in
                     PromptNoteView(note: note, appearIndex: index)
                 }
             }

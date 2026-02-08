@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct PromtSaverApp: App {
+    @State private var store = PromptNoteStore(notes: PromptNoteMockList.all)
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(store)
         }
     }
 }

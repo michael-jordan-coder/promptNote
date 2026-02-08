@@ -13,29 +13,37 @@
 
 ## Architecture
 
-**Pattern**: MVVM (Model-View-ViewModel)
+**Pattern**: MVVM with shared `@Observable` store
 
 ```
+Store        → PromptNoteStore (@Observable, source of truth, injected via .environment)
 Model        → PromptNote (value type, Identifiable + Equatable)
-ViewModels   → PromptNoteViewModel (list item), PromptNoteDetailViewModel (detail/edit)
+ViewModels   → PromptNoteDetailViewModel (detail/edit with edit state machine)
 Views        → PromptNoteView (card), PromptNoteDetailView (modal sheet)
 Entry Point  → PromtSaverApp → ContentView
 ```
 
-All ViewModels use `@MainActor` isolation and `@Published` properties for reactive UI updates.
+**Data flow**: `PromptNoteStore` → environment → `ContentView` reads `store.notes` → passes `note` to `PromptNoteView` → passes `note` + `store` to `PromptNoteDetailView` → ViewModel calls `store.update()` on save → reactive update back to list.
+
+**Edit state machine**:
+```
+VIEWING (pencil icon, CodeText) → tap edit → EDITING (checkmark icon, TextEditor)
+EDITING → tap save → VIEWING (updated content persisted to store)
+```
 
 ## File Map
 
 | File | Purpose |
 |---|---|
-| `PromtSaverApp.swift` | App entry point, `WindowGroup` bootstrap |
-| `ContentView.swift` | Root view — prompt list with staggered entrance |
+| `PromtSaverApp.swift` | App entry point — creates `PromptNoteStore`, injects via `.environment()` |
+| `ContentView.swift` | Root view — reads `store.notes`, staggered list entrance |
 | `PromptNote.swift` | Core data model — `id`, `title`, `content` |
-| `PromptNoteViewModel.swift` | List item logic — copy to pasteboard, feedback state |
-| `PromptNoteView.swift` | Card UI — press squash, staggered entrance, icon morph on copy |
-| `PromptNoteDetailViewModel.swift` | Detail logic — copy, rename, update content |
-| `PromptNoteDetailView.swift` | Modal sheet — editable title, content fade-in, copy button with press/success animation |
-| `PromptNote+Mocks.swift` | `#if DEBUG` mock data (6 sample prompts) |
+| `PromptNoteStore.swift` | `@Observable` shared store — source of truth, `update()` method |
+| `PromptNoteView.swift` | Card UI — tap scale, staggered entrance, inline copy |
+| `PromptNoteDetailViewModel.swift` | Detail logic — edit/save state machine, copy, rename, persists to store |
+| `PromptNoteDetailView.swift` | Modal sheet — edit/save toggle, CodeText ↔ TextEditor swap, copy pill button |
+| `PromptNoteViewModel.swift` | **(unused)** — legacy list item ViewModel, kept for reference |
+| `PromptNote+Mocks.swift` | `#if DEBUG` mock data (6 pro markdown system prompts) |
 | `PromptNoteMockList.swift` | `#if DEBUG` aggregation of all mocks |
 
 ## Dependencies
@@ -68,11 +76,13 @@ Interactions:
 
 | Element | Animation |
 |---|---|
-| Card tap | `CardPressStyle` — scale 0.96 on press, overshoot spring back |
+| Card tap | Scale 0.96 while sheet open, overshoot spring back on dismiss |
 | Card entrance | Staggered fade + slide up, 60ms delay per item, capped at 8 |
 | Copy icon (card) | `.contentTransition(.symbolEffect(.replace))` + green color |
-| Copy button (detail) | `CopyButtonStyle` — squash 0.97 on press, scale bump 1.05 on success, green bg |
+| Copy button (detail) | `CopyPromptButton` — pill, press squash 0.96, icon/text/color morph on success |
+| Edit/save button | `pencil.circle` ↔ `checkmark.circle.fill` symbol morph with `.contentTransition` |
 | Detail content | Fade in + slide up on appear with 150ms delay |
+| Edit mode swap | CodeText ↔ TextEditor with `.opacity` transition, copy button slides out |
 
 ## Known Issues
 

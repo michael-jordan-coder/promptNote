@@ -2,22 +2,50 @@ import SwiftUI
 import Foundation
 import Combine
 
-/// View model for managing the state and actions of a prompt note detail sheet.
 @MainActor
 final class PromptNoteDetailViewModel: ObservableObject {
-    /// The prompt note being displayed and edited.
+
+    // MARK: - State
     @Published var note: PromptNote
-    
-    /// Indicates whether the note's content was recently copied to the pasteboard.
+    @Published var isEditing = false
+    @Published var draftContent: String
     @Published var didCopy = false
-    
-    /// Creates a new view model for the given prompt note.
-    /// - Parameter note: The prompt note to manage.
-    init(note: PromptNote) {
+
+    private let store: PromptNoteStore
+
+    // MARK: - Init
+    init(note: PromptNote, store: PromptNoteStore) {
         self.note = note
+        self.draftContent = note.content
+        self.store = store
     }
-    
-    /// Copies the note's content to the system pasteboard, with a brief copy feedback.
+
+    // MARK: - Edit / Save
+
+    func toggleEdit() {
+        if isEditing {
+            save()
+        } else {
+            draftContent = note.content
+            isEditing = true
+        }
+    }
+
+    private func save() {
+        note = PromptNote(id: note.id, title: note.title, content: draftContent)
+        store.update(note)
+        isEditing = false
+    }
+
+    // MARK: - Title
+
+    func rename(to newTitle: String) {
+        note = PromptNote(id: note.id, title: newTitle, content: note.content)
+        store.update(note)
+    }
+
+    // MARK: - Copy
+
     func copy() {
         UIPasteboard.general.string = note.content
         didCopy = true
@@ -26,19 +54,4 @@ final class PromptNoteDetailViewModel: ObservableObject {
             didCopy = false
         }
     }
-    
-    /// Renames the note by updating its title.
-    /// - Parameter newTitle: The new title for the note.
-    func rename(to newTitle: String) {
-        // If `PromptNote` uses `let` properties, replace the whole value instead of mutating fields.
-        note = PromptNote(id: note.id, title: newTitle, content: note.content)
-    }
-    
-    /// Updates the content of the note.
-    /// - Parameter newContent: The new content for the note.
-    func updateContent(_ newContent: String) {
-        // If `PromptNote` uses `let` properties, replace the whole value instead of mutating fields.
-        note = PromptNote(id: note.id, title: note.title, content: newContent)
-    }
 }
-
