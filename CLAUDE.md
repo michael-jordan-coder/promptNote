@@ -29,12 +29,12 @@ All ViewModels use `@MainActor` isolation and `@Published` properties for reacti
 | File | Purpose |
 |---|---|
 | `PromtSaverApp.swift` | App entry point, `WindowGroup` bootstrap |
-| `ContentView.swift` | Root view (currently placeholder) |
+| `ContentView.swift` | Root view — prompt list with staggered entrance |
 | `PromptNote.swift` | Core data model — `id`, `title`, `content` |
 | `PromptNoteViewModel.swift` | List item logic — copy to pasteboard, feedback state |
-| `PromptNoteView.swift` | Card UI — title, syntax-highlighted content, copy/expand buttons |
+| `PromptNoteView.swift` | Card UI — press squash, staggered entrance, icon morph on copy |
 | `PromptNoteDetailViewModel.swift` | Detail logic — copy, rename, update content |
-| `PromptNoteDetailView.swift` | Modal sheet — editable title, language picker, highlighted content |
+| `PromptNoteDetailView.swift` | Modal sheet — editable title, content fade-in, copy button with press/success animation |
 | `PromptNote+Mocks.swift` | `#if DEBUG` mock data (6 sample prompts) |
 | `PromptNoteMockList.swift` | `#if DEBUG` aggregation of all mocks |
 
@@ -52,6 +52,27 @@ All ViewModels use `@MainActor` isolation and `@Published` properties for reacti
 - **UI**: Cards with rounded corners, monospaced fonts for code, `.regularMaterial` backgrounds, `.markdown` syntax highlight language
 - **Copy feedback**: 1.2-second checkmark animation after copying to pasteboard
 - **HighlightSwift modifier order**: `CodeText`-specific modifiers (`.highlightLanguage()`) must come *before* SwiftUI view modifiers (`.font()`, `.textSelection()`) — SwiftUI modifiers erase the `CodeText` type to `some View`
+- **Reduced motion**: All custom animations check `accessibilityReduceMotion` and fall back to `.none`
+
+## Motion & Animation
+
+Easing tokens (SwiftUI springs mapped from CSS motion guide):
+
+| Token | SwiftUI | Use |
+|---|---|---|
+| Overshoot | `.spring(response: 0.35, dampingFraction: 0.6)` | Hover, emphasis, entrance |
+| Ease-out | `.spring(response: 0.4, dampingFraction: 0.9)` | Settle, return to rest |
+| Ease-in | `.spring(response: 0.15, dampingFraction: 0.9)` | Press, quick exit |
+
+Interactions:
+
+| Element | Animation |
+|---|---|
+| Card tap | `CardPressStyle` — scale 0.96 on press, overshoot spring back |
+| Card entrance | Staggered fade + slide up, 60ms delay per item, capped at 8 |
+| Copy icon (card) | `.contentTransition(.symbolEffect(.replace))` + green color |
+| Copy button (detail) | `CopyButtonStyle` — squash 0.97 on press, scale bump 1.05 on success, green bg |
+| Detail content | Fade in + slide up on appear with 150ms delay |
 
 ## Known Issues
 

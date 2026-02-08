@@ -5,16 +5,52 @@ struct PromptNoteView: View {
 
     @StateObject private var viewModel: PromptNoteViewModel
     @State private var isPresentingDetail = false
+    @State private var appeared = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let appearIndex: Int
 
     // MARK: - Init
-    init(note: PromptNote) {
+    init(note: PromptNote, appearIndex: Int = 0) {
         _viewModel = StateObject(
             wrappedValue: PromptNoteViewModel(note: note)
         )
+        self.appearIndex = appearIndex
     }
 
     // MARK: - View
     var body: some View {
+        cardContent
+            .scaleEffect(isPresentingDetail && !reduceMotion ? 0.96 : 1.0)
+            .animation(
+                reduceMotion ? .none :
+                isPresentingDetail
+                    ? .spring(response: 0.15, dampingFraction: 0.9)
+                    : .spring(response: 0.35, dampingFraction: 0.6),
+                value: isPresentingDetail
+            )
+            .onTapGesture {
+                isPresentingDetail = true
+            }
+        .opacity(appeared ? 1 : 0)
+        .offset(y: appeared ? 0 : 12)
+        .onAppear {
+            guard !appeared else { return }
+            let delay = reduceMotion ? 0 : Double(min(appearIndex, 8)) * 0.06
+            withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.7).delay(delay)) {
+                appeared = true
+            }
+        }
+        .sheet(isPresented: $isPresentingDetail) {
+            PromptNoteDetailView(note: viewModel.note)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    // MARK: - Card Content
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: 16) {
 
             // Header
@@ -24,6 +60,7 @@ struct PromptNoteView: View {
                     .bold()
                     .lineLimit(1)
                     .truncationMode(.tail)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
@@ -34,6 +71,8 @@ struct PromptNoteView: View {
                           ? "checkmark.circle.fill"
                           : "doc.on.doc")
                         .imageScale(.medium)
+                        .foregroundStyle(viewModel.didCopy ? .green : .primary)
+                        .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
             }
@@ -51,16 +90,9 @@ struct PromptNoteView: View {
         .padding(24)
         .background(Color(.systemGray6))
         .cornerRadius(24)
-        .onTapGesture {
-            isPresentingDetail = true
-        }
-        .sheet(isPresented: $isPresentingDetail) {
-            PromptNoteDetailView(note: viewModel.note)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
     }
 }
+
 #Preview {
     PromptNoteView(
         note: PromptNote(
@@ -82,4 +114,3 @@ struct PromptNoteView: View {
     }
     .listStyle(.plain)
 }
-

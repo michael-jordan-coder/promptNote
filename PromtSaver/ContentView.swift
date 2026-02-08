@@ -8,13 +8,18 @@
 import SwiftUI
 
 struct ContentView: View {
+    private let notes = PromptNoteMockList.all
+
     var body: some View {
-        List(PromptNoteMockList.all) { note in
-            PromptNoteView(note: note)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
+                    PromptNoteView(note: note, appearIndex: index)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
-        .listStyle(.plain)
     }
 }
 
