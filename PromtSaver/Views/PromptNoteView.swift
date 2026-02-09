@@ -3,47 +3,59 @@ import HighlightSwift
 import SwiftData
 
 struct PromptNoteView: View {
+    @StateObject private var viewModel = PromptNoteCardViewModel()
 
     let note: PromptNote
     let appearIndex: Int
-
-    @State private var isPresentingDetail = false
-    @State private var appeared = false
-    @State private var didCopy = false
+    let onDeleteIntent: (PromptNote) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(note: PromptNote, appearIndex: Int = 0) {
+    private let cardCornerRadius: CGFloat = 24
+
+    init(
+        note: PromptNote,
+        appearIndex: Int = 0,
+        onDeleteIntent: @escaping (PromptNote) -> Void = { _ in }
+    ) {
         self.note = note
         self.appearIndex = appearIndex
+        self.onDeleteIntent = onDeleteIntent
     }
 
     // MARK: - View
     var body: some View {
         cardContent
-            .scaleEffect(isPresentingDetail && !reduceMotion ? 0.96 : 1.0)
+            .scaleEffect(viewModel.isPresentingDetail && !reduceMotion ? 0.96 : 1.0)
             .animation(
                 reduceMotion ? .none :
-                isPresentingDetail
+                viewModel.isPresentingDetail
                     ? .spring(response: 0.15, dampingFraction: 0.9)
                     : .spring(response: 0.35, dampingFraction: 0.6),
-                value: isPresentingDetail
+                value: viewModel.isPresentingDetail
             )
             .onTapGesture {
-                isPresentingDetail = true
+                viewModel.presentDetail()
             }
-        .opacity(appeared ? 1 : 0)
-        .offset(y: appeared ? 0 : 12)
+            .accessibilityAction(named: Text("Delete")) {
+                onDeleteIntent(note)
+            }
+            .accessibilityHint("Swipe left on the row to delete this prompt note.")
+        .opacity(viewModel.appeared ? 1 : 0)
+        .offset(y: viewModel.appeared ? 0 : 12)
         .onAppear {
-            guard !appeared else { return }
-            let delay = reduceMotion ? 0 : Double(min(appearIndex, 8)) * 0.06
+            guard !viewModel.appeared else { return }
+            let delay = viewModel.appearanceDelay(for: appearIndex, reduceMotion: reduceMotion)
             withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.7).delay(delay)) {
-                appeared = true
+                viewModel.markAppeared()
             }
         }
-        .sheet(isPresented: $isPresentingDetail) {
+        .onDisappear {
+            viewModel.cleanup()
+        }
+        .sheet(isPresented: $viewModel.isPresentingDetail) {
             PromptNoteDetailView(note: note)
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -66,41 +78,31 @@ struct PromptNoteView: View {
                 Spacer()
 
                 Button {
-                    copyToClipboard()
+                    viewModel.copy(content: note.content)
                 } label: {
-                    Image(systemName: didCopy
+                    Image(systemName: viewModel.didCopy
                           ? "checkmark.circle.fill"
                           : "doc.on.doc")
                         .imageScale(.medium)
-                        .foregroundStyle(didCopy ? .green : .primary)
+                        .foregroundStyle(viewModel.didCopy ? .green : .primary)
                         .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
             }
 
-            // Scrollable prompt content
-            ScrollView {
-                CodeText(note.content)
-                    .highlightLanguage(.markdown)
-                    .font(Font.system(.subheadline, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 2)
-                    .id(note.content)
-            }
+            // Prompt content preview
+            CodeText(note.content)
+                .highlightLanguage(.markdown)
+                .font(Font.system(.subheadline, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 2)
+                .lineLimit(6)
+                .id(note.content)
         }
         .padding(24)
         .background(Color(.systemGray6))
-        .cornerRadius(24)
-    }
-
-    private func copyToClipboard() {
-        UIPasteboard.general.string = note.content
-        didCopy = true
-        Task {
-            try? await Task.sleep(for: .seconds(1.2))
-            didCopy = false
-        }
+        .cornerRadius(cardCornerRadius)
     }
 }
 

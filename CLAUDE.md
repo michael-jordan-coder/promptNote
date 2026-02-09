@@ -18,12 +18,12 @@
 ```
 Persistence  → SwiftData @Model + ModelContainer (SQLite-backed, auto-save)
 Model        → PromptNote (@Model class, Identifiable), AIModel (enum, Codable)
-ViewModels   → PromptNoteDetailViewModel (edit), CreatePromptViewModel (create)
-Views        → ContentView (empty state / list), PromptNoteView (card), AIModelBadge, detail & create sheets
+ViewModels   → ContentViewModel (list/search/delete), PromptNoteCardViewModel (card interaction), PromptNoteDetailViewModel (edit), CreatePromptViewModel (create)
+Views        → ContentView (composition only), PromptNoteView (card presentation), DeleteConfirmationOverlay, AIModelBadge, detail & create sheets
 Entry Point  → PromtSaverApp → ContentView
 ```
 
-**Data flow**: `ModelContainer` (via `.modelContainer()`) → `ContentView` uses `@Query` to fetch notes → passes `PromptNote` reference to `PromptNoteView` → passes to `PromptNoteDetailView` → ViewModel mutates `@Model` properties directly on save → SwiftData auto-persists → `@Query` reactively updates list.
+**Data flow**: `ModelContainer` (via `.modelContainer()`) → `ContentView` uses `@Query` to fetch notes → delegates filtering + delete orchestration to `ContentViewModel` → passes `PromptNote` reference to `PromptNoteView` + `PromptNoteCardViewModel` for card interaction state → `PromptNoteDetailViewModel` mutates `@Model` properties directly on save → SwiftData auto-persists → `@Query` reactively updates list.
 
 **Draft isolation**: ViewModel holds `draftTitle`/`draftContent` as separate `String` properties. Only written back to the `@Model` object on explicit save or dismiss — prevents per-keystroke disk writes.
 
@@ -43,14 +43,17 @@ PromtSaver/
 │   ├── PromptNote.swift              — @Model class (id, title, content, aiModel), SwiftData-persisted
 │   └── AIModel.swift                 — enum AIModel (chatgpt, claude, gemini, cursor), Codable, tap-to-cycle
 ├── ViewModels/
+│   ├── ContentViewModel.swift        — List orchestration (search/filter, create sheet state, delete confirm flow, SwiftData delete)
+│   ├── PromptNoteCardViewModel.swift — Card interaction state (tap presentation, staged appear animation, copy feedback task)
 │   ├── PromptNoteDetailViewModel.swift — Edit/save state machine, draft fields, mutates @Model directly
 │   └── CreatePromptViewModel.swift   — Create flow drafts, validation, insert via ModelContext
 ├── Views/
-│   ├── ContentView.swift             — Root view, @Query, empty state vs note list, toolbar +, create sheet
+│   ├── ContentView.swift             — Root composition view, binds to ContentViewModel state/actions and renders list/sheets/overlay
 │   ├── EmptyStateView.swift          — Minimal CTA screen when no notes exist
 │   ├── CreatePromptView.swift        — Create sheet, AI model badge + title + content editor + save pill
 │   ├── AIModelBadge.swift            — Reusable circle badge, tappable (Binding) or read-only
-│   ├── PromptNoteView.swift          — Card UI, AI model badge, tap scale, staggered entrance, inline copy
+│   ├── PromptNoteView.swift          — Card presentation, binds to PromptNoteCardViewModel for state and copy interactions
+│   ├── DeleteConfirmationOverlay.swift — Centered modal overlay for destructive delete confirmation
 │   └── PromptNoteDetailView.swift    — Modal sheet, AI model badge, edit/save toggle, CodeText ↔ TextEditor, copy pill
 ├── PreviewContent/
 │   ├── PromptNote+Mocks.swift        — #if DEBUG mock data (6 pro markdown system prompts)
@@ -119,9 +122,7 @@ Interactions:
 
 - Networking / API layer
 - Unit tests
-- Error handling
-- Search / filtering
-- Delete prompts from UI
+- Full test coverage for delete and search flows
 - Accessibility beyond basic labels
 
 ## Git
