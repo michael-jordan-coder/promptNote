@@ -1,5 +1,6 @@
 import SwiftUI
 import HighlightSwift
+import SwiftData
 
 struct PromptNoteView: View {
 
@@ -11,7 +12,6 @@ struct PromptNoteView: View {
     @State private var didCopy = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(PromptNoteStore.self) private var store
 
     init(note: PromptNote, appearIndex: Int = 0) {
         self.note = note
@@ -42,7 +42,7 @@ struct PromptNoteView: View {
             }
         }
         .sheet(isPresented: $isPresentingDetail) {
-            PromptNoteDetailView(note: note, store: store)
+            PromptNoteDetailView(note: note)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
@@ -84,6 +84,7 @@ struct PromptNoteView: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 2)
+                    .id(note.content)
             }
         }
         .padding(24)
@@ -101,17 +102,17 @@ struct PromptNoteView: View {
     }
 }
 
-#Preview {
-    PromptNoteView(
-        note: PromptNote(
-            id: UUID(),
-            title: "System Prompt",
-            content: """
-            You are an expert SwiftUI engineer.
-            Follow MVVM strictly.
-            Prefer clarity over cleverness.
-            """
-        )
-    )
-    .environment(PromptNoteStore(notes: PromptNoteMockList.all))
+#Preview("SwiftUI Engineer") {
+    PromptNoteView(note: .mockSystemSwiftUIEngineer)
+        .modelContainer(PromptNoteMockList.previewContainer)
+}
+
+#Preview("Code Reviewer") {
+    PromptNoteView(note: .mockSystemCodeReviewer)
+        .modelContainer(PromptNoteMockList.previewContainer)
+}
+
+#Preview("Product Copywriter") {
+    PromptNoteView(note: .mockSystemProductCopy)
+        .modelContainer(PromptNoteMockList.previewContainer)
 }

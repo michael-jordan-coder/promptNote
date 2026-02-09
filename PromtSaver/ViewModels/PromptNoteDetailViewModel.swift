@@ -6,18 +6,19 @@ import Combine
 final class PromptNoteDetailViewModel: ObservableObject {
 
     // MARK: - State
-    @Published var note: PromptNote
+    let note: PromptNote
     @Published var isEditing = false
     @Published var draftContent: String
+    @Published var draftTitle: String
     @Published var didCopy = false
 
-    private let store: PromptNoteStore
+    private var copyTask: Task<Void, Never>?
 
     // MARK: - Init
-    init(note: PromptNote, store: PromptNoteStore) {
+    init(note: PromptNote) {
         self.note = note
         self.draftContent = note.content
-        self.store = store
+        self.draftTitle = note.title
     }
 
     // MARK: - Edit / Save
@@ -27,21 +28,26 @@ final class PromptNoteDetailViewModel: ObservableObject {
             save()
         } else {
             draftContent = note.content
+            draftTitle = note.title
             isEditing = true
         }
     }
 
     private func save() {
-        note = PromptNote(id: note.id, title: note.title, content: draftContent)
-        store.update(note)
+        note.title = draftTitle
+        note.content = draftContent
         isEditing = false
     }
 
-    // MARK: - Title
-
-    func rename(to newTitle: String) {
-        note = PromptNote(id: note.id, title: newTitle, content: note.content)
-        store.update(note)
+    /// Persist title change on sheet dismiss (title is always editable).
+    func persistIfNeeded() {
+        if isEditing {
+            isEditing = false
+        }
+        if draftTitle != note.title {
+            note.title = draftTitle
+        }
+        copyTask?.cancel()
     }
 
     // MARK: - Copy
@@ -49,8 +55,10 @@ final class PromptNoteDetailViewModel: ObservableObject {
     func copy() {
         UIPasteboard.general.string = note.content
         didCopy = true
-        Task {
+        copyTask?.cancel()
+        copyTask = Task {
             try? await Task.sleep(for: .seconds(1.2))
+            guard !Task.isCancelled else { return }
             didCopy = false
         }
     }

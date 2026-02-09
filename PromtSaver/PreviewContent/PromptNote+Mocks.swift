@@ -1,11 +1,13 @@
 import Foundation
+import SwiftData
 
 #if DEBUG
 /// Mock PromptNote fixtures for development & previews.
-/// Contains only static sample data. No SwiftUI, no ViewModels.
+/// Computed properties return fresh instances each time (@Model is a reference type).
 /// Wrapped in DEBUG so it never ships to production.
 extension PromptNote {
-    static let mockSystemSwiftUIEngineer = PromptNote(
+    static var mockSystemSwiftUIEngineer: PromptNote {
+        PromptNote(
         id: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
         title: "Senior SwiftUI Engineer",
         content: """
@@ -26,9 +28,11 @@ extension PromptNote {
 
         > When requirements are ambiguous, **ask** before coding.
         """
-    )
+        )
+    }
 
-    static let mockSystemCodeReviewer = PromptNote(
+    static var mockSystemCodeReviewer: PromptNote {
+        PromptNote(
         id: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!,
         title: "iOS Code Reviewer",
         content: """
@@ -51,9 +55,11 @@ extension PromptNote {
 
         End with a **summary verdict**: *Approve*, *Request Changes*, or *Needs Discussion*.
         """
-    )
+        )
+    }
 
-    static let mockSystemAPIArchitect = PromptNote(
+    static var mockSystemAPIArchitect: PromptNote {
+        PromptNote(
         id: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!,
         title: "REST API Architect",
         content: """
@@ -77,9 +83,11 @@ extension PromptNote {
         - Request/response examples in JSON
         - Note any **rate limiting** or **caching** headers
         """
-    )
+        )
+    }
 
-    static let mockSystemTechnicalWriter = PromptNote(
+    static var mockSystemTechnicalWriter: PromptNote {
+        PromptNote(
         id: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!,
         title: "Technical Writer",
         content: """
@@ -103,9 +111,11 @@ extension PromptNote {
 
         > *Avoid jargon.* If you must use a technical term, define it inline.
         """
-    )
+        )
+    }
 
-    static let mockSystemDataAnalyst = PromptNote(
+    static var mockSystemDataAnalyst: PromptNote {
+        PromptNote(
         id: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
         title: "SQL Data Analyst",
         content: """
@@ -131,9 +141,11 @@ extension PromptNote {
 
         Finish with a **plain-English summary** of the results and any assumptions made.
         """
-    )
+        )
+    }
 
-    static let mockSystemProductCopy = PromptNote(
+    static var mockSystemProductCopy: PromptNote {
+        PromptNote(
         id: UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!,
         title: "Product Copywriter",
         content: """
@@ -155,6 +167,7 @@ extension PromptNote {
 
         > Write like you're explaining to a smart friend, not selling to a stranger.
         """
-    )
+        )
+    }
 }
 #endif

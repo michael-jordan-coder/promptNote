@@ -1,5 +1,6 @@
 import SwiftUI
 import HighlightSwift
+import SwiftData
 
 struct PromptNoteDetailView: View {
     @StateObject private var viewModel: PromptNoteDetailViewModel
@@ -7,8 +8,8 @@ struct PromptNoteDetailView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(note: PromptNote, store: PromptNoteStore) {
-        _viewModel = StateObject(wrappedValue: PromptNoteDetailViewModel(note: note, store: store))
+    init(note: PromptNote) {
+        _viewModel = StateObject(wrappedValue: PromptNoteDetailViewModel(note: note))
     }
 
     var body: some View {
@@ -21,10 +22,7 @@ struct PromptNoteDetailView: View {
 
             // Header
             HStack {
-                TextField("Title", text: Binding(
-                    get: { viewModel.note.title },
-                    set: { viewModel.rename(to: $0) }
-                ))
+                TextField("Title", text: $viewModel.draftTitle)
                     .font(.title3.bold())
                     .textFieldStyle(.plain)
 
@@ -58,6 +56,7 @@ struct PromptNoteDetailView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .opacity(contentAppeared ? 1 : 0)
                         .offset(y: contentAppeared ? 0 : 8)
+                        .id(viewModel.note.content)
                 }
                 .transition(.opacity)
                 .onAppear {
@@ -81,6 +80,9 @@ struct PromptNoteDetailView: View {
         .background(.regularMaterial)
         .cornerRadius(16, corners: [.topLeft, .topRight])
         .animation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isEditing)
+        .onDisappear {
+            viewModel.persistIfNeeded()
+        }
     }
 }
 
@@ -136,13 +138,11 @@ struct CopyPromptButton: View {
 #Preview {
     struct PreviewWrapper: View {
         @State private var showingSheet = true
-        @State private var store = PromptNoteStore(notes: PromptNoteMockList.all)
         var body: some View {
             Color.clear
                 .sheet(isPresented: $showingSheet) {
                     PromptNoteDetailView(
-                        note: PromptNoteMockList.all.first!,
-                        store: store
+                        note: .mockSystemSwiftUIEngineer
                     )
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
@@ -150,6 +150,7 @@ struct CopyPromptButton: View {
         }
     }
     return PreviewWrapper()
+        .modelContainer(PromptNoteMockList.previewContainer)
 }
 
 // Extension for corner radius on specific corners
