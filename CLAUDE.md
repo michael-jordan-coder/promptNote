@@ -17,9 +17,9 @@
 
 ```
 Persistence  → SwiftData @Model + ModelContainer (SQLite-backed, auto-save)
-Model        → PromptNote (@Model class, Identifiable)
+Model        → PromptNote (@Model class, Identifiable), AIModel (enum, Codable)
 ViewModels   → PromptNoteDetailViewModel (edit), CreatePromptViewModel (create)
-Views        → ContentView (empty state / list), PromptNoteView (card), detail & create sheets
+Views        → ContentView (empty state / list), PromptNoteView (card), AIModelBadge, detail & create sheets
 Entry Point  → PromtSaverApp → ContentView
 ```
 
@@ -40,20 +40,26 @@ PromtSaver/
 ├── App/
 │   └── PromtSaverApp.swift          — App entry point, .modelContainer(for: PromptNote.self)
 ├── Models/
-│   └── PromptNote.swift              — @Model class (id, title, content), SwiftData-persisted
+│   ├── PromptNote.swift              — @Model class (id, title, content, aiModel), SwiftData-persisted
+│   └── AIModel.swift                 — enum AIModel (chatgpt, claude, gemini, cursor), Codable, tap-to-cycle
 ├── ViewModels/
 │   ├── PromptNoteDetailViewModel.swift — Edit/save state machine, draft fields, mutates @Model directly
 │   └── CreatePromptViewModel.swift   — Create flow drafts, validation, insert via ModelContext
 ├── Views/
 │   ├── ContentView.swift             — Root view, @Query, empty state vs note list, toolbar +, create sheet
 │   ├── EmptyStateView.swift          — Minimal CTA screen when no notes exist
-│   ├── CreatePromptView.swift        — Create sheet, title + content editor + save pill button
-│   ├── PromptNoteView.swift          — Card UI, tap scale, staggered entrance, inline copy
-│   └── PromptNoteDetailView.swift    — Modal sheet, edit/save toggle, CodeText ↔ TextEditor, copy pill
+│   ├── CreatePromptView.swift        — Create sheet, AI model badge + title + content editor + save pill
+│   ├── AIModelBadge.swift            — Reusable circle badge, tappable (Binding) or read-only
+│   ├── PromptNoteView.swift          — Card UI, AI model badge, tap scale, staggered entrance, inline copy
+│   └── PromptNoteDetailView.swift    — Modal sheet, AI model badge, edit/save toggle, CodeText ↔ TextEditor, copy pill
 ├── PreviewContent/
 │   ├── PromptNote+Mocks.swift        — #if DEBUG mock data (6 pro markdown system prompts)
 │   └── PromptNoteMockList.swift      — #if DEBUG mock aggregation + previewContainer
 └── Assets.xcassets/
+    ├── ai-chatgpt.imageset/          — OpenAI logo, light/dark appearances
+    ├── ai-claude.imageset/           — Claude logo, light/dark appearances
+    ├── ai-gemini.imageset/           — Gemini logo (gradient, single variant)
+    └── ai-cursor.imageset/           — Cursor logo, light/dark appearances
 ```
 
 ## Dependencies

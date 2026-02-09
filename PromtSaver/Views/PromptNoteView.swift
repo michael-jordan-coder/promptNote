@@ -54,6 +54,8 @@ struct PromptNoteView: View {
 
             // Header
             HStack {
+                AIModelBadge(model: note.aiModel)
+
                 Text(note.title)
                     .font(.title2)
                     .bold()

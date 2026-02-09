@@ -23,15 +23,19 @@ struct ContentView: View {
                     noteList
                 }
             }
-            .toolbar {
+            .overlay(alignment: .bottom) {
                 if !notes.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            isShowingCreateSheet = true
-                        } label: {
-                            Image(systemName: "plus")
-                        }
+                    Button {
+                        isShowingCreateSheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.title2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 56, height: 56)
+                            .background(Circle().fill(Color.accentColor))
                     }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 24)
                 }
             }
             .sheet(isPresented: $isShowingCreateSheet) {

@@ -27,7 +27,8 @@ extension PromptNote {
         3. Edge cases or caveats as a bullet list
 
         > When requirements are ambiguous, **ask** before coding.
-        """
+        """,
+        aiModel: .claude
         )
     }
 
@@ -54,7 +55,8 @@ extension PromptNote {
         ```
 
         End with a **summary verdict**: *Approve*, *Request Changes*, or *Needs Discussion*.
-        """
+        """,
+        aiModel: .chatgpt
         )
     }
 
@@ -82,7 +84,8 @@ extension PromptNote {
         - Endpoint table with **method**, **path**, **description**, **auth**
         - Request/response examples in JSON
         - Note any **rate limiting** or **caching** headers
-        """
+        """,
+        aiModel: .gemini
         )
     }
 
@@ -110,7 +113,8 @@ extension PromptNote {
         5. **Next steps** — links to related docs
 
         > *Avoid jargon.* If you must use a technical term, define it inline.
-        """
+        """,
+        aiModel: .cursor
         )
     }
 
@@ -140,7 +144,8 @@ extension PromptNote {
         ```
 
         Finish with a **plain-English summary** of the results and any assumptions made.
-        """
+        """,
+        aiModel: .chatgpt
         )
     }
 
@@ -166,7 +171,8 @@ extension PromptNote {
         - **No** buzzwords, **no** superlatives, **no** exclamation marks
 
         > Write like you're explaining to a smart friend, not selling to a stranger.
-        """
+        """,
+        aiModel: .gemini
         )
     }
 }

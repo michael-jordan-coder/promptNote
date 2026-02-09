@@ -22,21 +22,28 @@ struct PromptNoteDetailView: View {
 
             // Header
             HStack {
+                AIModelBadge(model: Binding(
+                    get: { viewModel.note.aiModel },
+                    set: { viewModel.note.aiModel = $0 }
+                ))
+
                 TextField("Title", text: $viewModel.draftTitle)
                     .font(.title3.bold())
                     .textFieldStyle(.plain)
 
-                Button {
-                    withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.6)) {
-                        viewModel.toggleEdit()
+                if viewModel.isEditing {
+                    Button {
+                        withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.6)) {
+                            viewModel.toggleEdit()
+                        }
+                    } label: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .imageScale(.large)
+                            .foregroundStyle(.green)
                     }
-                } label: {
-                    Image(systemName: viewModel.isEditing ? "checkmark.circle.fill" : "pencil.circle")
-                        .imageScale(.large)
-                        .foregroundStyle(viewModel.isEditing ? .green : .secondary)
-                        .contentTransition(.symbolEffect(.replace))
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .buttonStyle(.plain)
             }
 
             // Content — swap between read-only and editable
@@ -44,8 +51,6 @@ struct PromptNoteDetailView: View {
                 TextEditor(text: $viewModel.draftContent)
                     .font(.system(.body, design: .monospaced))
                     .scrollContentBackground(.hidden)
-                    .padding(8)
-                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 8))
                     .transition(.opacity)
             } else {
                 ScrollView(.vertical) {
@@ -57,6 +62,11 @@ struct PromptNoteDetailView: View {
                         .opacity(contentAppeared ? 1 : 0)
                         .offset(y: contentAppeared ? 0 : 8)
                         .id(viewModel.note.content)
+                }
+                .onTapGesture {
+                    withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.6)) {
+                        viewModel.toggleEdit()
+                    }
                 }
                 .transition(.opacity)
                 .onAppear {

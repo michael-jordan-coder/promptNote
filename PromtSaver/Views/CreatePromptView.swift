@@ -18,16 +18,28 @@ struct CreatePromptView: View {
                 .padding(.top, 8)
 
             // Title
-            TextField("Prompt Title", text: $viewModel.draftTitle)
-                .font(.title3.bold())
-                .textFieldStyle(.plain)
+            HStack{
+                AIModelBadge(model: $viewModel.selectedModel)
 
+                TextField("Prompt Title", text: $viewModel.draftTitle)
+                    .font(.title.bold())
+                    .textFieldStyle(.plain)
+            }
             // Content editor
-            TextEditor(text: $viewModel.draftContent)
-                .font(.system(.body, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .background(Color(.clear), in: RoundedRectangle(cornerRadius: 8))
+            ZStack(alignment: .topLeading) {
+                if viewModel.draftContent.isEmpty {
+                    Text("Write your prompt here...")
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 10)
+                        .padding(.leading, 5)
+                }
+                TextEditor(text: $viewModel.draftContent)
+                    .font(.system(.body, design: .monospaced))
+                    .scrollContentBackground(.hidden)
+            }
+            .padding(8)
+            .background(Color(.clear), in: RoundedRectangle(cornerRadius: 8))
 
             // Save button
             SavePromptButton(
@@ -68,14 +80,13 @@ struct SavePromptButton: View {
             action()
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.body.weight(.semibold))
-
                 Text("Save Prompt")
+                    .font(.body.weight(.semibold))
+                Image(systemName: "bookmark.fill")
                     .font(.body.weight(.semibold))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .padding(.vertical, 16)
             .foregroundStyle(.white)
             .background {
                 Capsule()
