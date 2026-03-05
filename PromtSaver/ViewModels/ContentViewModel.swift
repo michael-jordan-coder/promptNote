@@ -9,14 +9,7 @@ final class ContentViewModel: ObservableObject {
     @Published var isShowingCreateSheet = false
     @Published var searchText = ""
     @Published private(set) var pendingDeleteNote: PromptNote?
-    @Published private(set) var isShowingDeleteConfirm = false
     @Published var deleteErrorMessage: String?
-
-    // MARK: - Derived State
-
-    var isDeleteConfirmationVisible: Bool {
-        isShowingDeleteConfirm && pendingDeleteNote != nil
-    }
 
     // MARK: - Query Helpers
 
@@ -39,9 +32,7 @@ final class ContentViewModel: ObservableObject {
     // MARK: - Delete Flow
 
     func requestDelete(_ note: PromptNote) {
-        guard !isShowingDeleteConfirm else { return }
         pendingDeleteNote = note
-        isShowingDeleteConfirm = true
     }
 
     func cancelDelete() {
@@ -66,6 +57,5 @@ final class ContentViewModel: ObservableObject {
 
     private func clearDeleteState() {
         pendingDeleteNote = nil
-        isShowingDeleteConfirm = false
     }
 }

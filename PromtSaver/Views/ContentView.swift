@@ -10,13 +10,29 @@ import SwiftData
 
 struct ContentView: View {
     @StateObject private var viewModel = ContentViewModel()
-    @Query private var notes: [PromptNote]
+    @Query(
+        sort: [
+            SortDescriptor(\PromptNote.updatedAt, order: .reverse),
+            SortDescriptor(\PromptNote.createdAt, order: .reverse)
+        ]
+    ) private var notes: [PromptNote]
+    @FocusState private var isSearchFocused: Bool
 
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var filteredNotes: [PromptNote] {
         viewModel.filteredNotes(from: notes)
+    }
+
+    private var deleteConfirmationPresented: Binding<Bool> {
+        Binding(
+            get: { viewModel.pendingDeleteNote != nil },
+            set: { newValue in
+                if !newValue {
+                    viewModel.cancelDelete()
+                }
+            }
+        )
     }
 
     private var deleteErrorPresented: Binding<Bool> {
@@ -30,52 +46,54 @@ struct ContentView: View {
         )
     }
 
-    private var overlayAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.86)
-    }
-
     var body: some View {
         NavigationStack {
-            ZStack {
-                Group {
-                    if notes.isEmpty {
-                        EmptyStateView {
-                            viewModel.presentCreateSheet()
-                        }
-                    } else {
-                        noteList
+            Group {
+                if notes.isEmpty {
+                    EmptyStateView {
+                        viewModel.presentCreateSheet()
                     }
-                }
-                .allowsHitTesting(!viewModel.isDeleteConfirmationVisible)
-                .overlay(alignment: .bottom) {
-                    if !notes.isEmpty {
-                        bottomSearchBar
+                } else if filteredNotes.isEmpty {
+                    SearchEmptyStateView {
+                        viewModel.searchText = ""
+                        isSearchFocused = false
                     }
-                }
-                .sheet(isPresented: $viewModel.isShowingCreateSheet) {
-                    CreatePromptView()
-                        .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
-                }
-
-                if let pendingDeleteNote = viewModel.pendingDeleteNote, viewModel.isDeleteConfirmationVisible {
-                    DeleteConfirmationOverlay(
-                        noteTitle: pendingDeleteNote.title,
-                        onCancel: hideDeleteConfirmation,
-                        onConfirm: confirmDelete
-                    )
-                    .transition(
-                        reduceMotion
-                            ? .opacity
-                            : .opacity.combined(with: .scale(scale: 0.98))
-                    )
-                    .zIndex(1)
+                } else {
+                    noteList
                 }
             }
-            .animation(
-                overlayAnimation,
-                value: viewModel.isDeleteConfirmationVisible
-            )
+            .navigationTitle("Prompts")
+            .searchable(text: $viewModel.searchText, placement: .automatic, prompt: "Search prompts")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        viewModel.presentCreateSheet()
+                    } label: {
+                        Label("New Prompt", systemImage: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $viewModel.isShowingCreateSheet) {
+                CreatePromptView()
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(.thickMaterial)
+            }
+            .confirmationDialog(
+                "Delete Prompt?",
+                isPresented: deleteConfirmationPresented,
+                titleVisibility: .visible,
+                presenting: viewModel.pendingDeleteNote
+            ) { note in
+                Button("Delete", role: .destructive) {
+                    confirmDelete()
+                }
+                Button("Cancel", role: .cancel) {
+                    viewModel.cancelDelete()
+                }
+            } message: { note in
+                Text("Delete \"\(note.title)\"? This action cannot be undone.")
+            }
             .alert("Delete Failed", isPresented: deleteErrorPresented) {
                 Button("OK", role: .cancel) {
                     viewModel.deleteErrorMessage = nil
@@ -109,52 +127,32 @@ struct ContentView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .padding(.bottom, 64)
-    }
-
-    // MARK: - Bottom Search Bar
-    private var bottomSearchBar: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-
-            TextField("Search prompts...", text: $viewModel.searchText)
-                .textFieldStyle(.plain)
-
-            Button {
-                viewModel.presentCreateSheet()
-            } label: {
-                Image(systemName: "plus")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color.accentColor))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.regularMaterial, in: Capsule())
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
     }
 
     private func showDeleteConfirmation(_ note: PromptNote) {
-        withAnimation(overlayAnimation) {
-            viewModel.requestDelete(note)
-        }
-    }
-
-    private func hideDeleteConfirmation() {
-        withAnimation(overlayAnimation) {
-            viewModel.cancelDelete()
-        }
+        viewModel.requestDelete(note)
     }
 
     private func confirmDelete() {
-        withAnimation(overlayAnimation) {
-            viewModel.confirmDelete(in: modelContext)
+        viewModel.confirmDelete(in: modelContext)
+    }
+}
+
+private struct SearchEmptyStateView: View {
+    let clearAction: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            ContentUnavailableView(
+                "No Matching Prompts",
+                systemImage: "magnifyingglass",
+                description: Text("Try a different keyword or clear your current search.")
+            )
+
+            Button("Clear Search", action: clearAction)
+                .buttonStyle(.borderedProminent)
         }
+        .padding(.bottom, 96)
     }
 }
 

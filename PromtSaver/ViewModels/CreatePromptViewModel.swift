@@ -16,12 +16,13 @@ final class CreatePromptViewModel: ObservableObject {
 
     // MARK: - Actions
 
-    func save(in context: ModelContext) {
+    func save(in context: ModelContext) throws {
         let note = PromptNote(
             title: draftTitle.trimmingCharacters(in: .whitespacesAndNewlines),
             content: draftContent,
             aiModel: selectedModel
         )
         context.insert(note)
+        try context.save()
     }
 }

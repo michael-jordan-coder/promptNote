@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import SwiftData
 import Combine
 
 @MainActor
@@ -10,6 +11,7 @@ final class PromptNoteDetailViewModel: ObservableObject {
     @Published var isEditing = false
     @Published var draftContent: String
     @Published var draftTitle: String
+    @Published var draftModel: AIModel
     @Published var didCopy = false
 
     private var copyTask: Task<Void, Never>?
@@ -19,35 +21,38 @@ final class PromptNoteDetailViewModel: ObservableObject {
         self.note = note
         self.draftContent = note.content
         self.draftTitle = note.title
+        self.draftModel = note.aiModel
+    }
+
+    var canSave: Bool {
+        !draftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var hasUnsavedChanges: Bool {
+        draftTitle != note.title ||
+        draftContent != note.content ||
+        draftModel != note.aiModel
     }
 
     // MARK: - Edit / Save
 
-    func toggleEdit() {
-        if isEditing {
-            save()
-        } else {
-            draftContent = note.content
-            draftTitle = note.title
-            isEditing = true
-        }
+    func beginEditing() {
+        restoreDraftsFromNote()
+        isEditing = true
     }
 
-    private func save() {
-        note.title = draftTitle
-        note.content = draftContent
+    func discardEdits() {
+        restoreDraftsFromNote()
         isEditing = false
     }
 
-    /// Persist title change on sheet dismiss (title is always editable).
-    func persistIfNeeded() {
-        if isEditing {
-            isEditing = false
-        }
-        if draftTitle != note.title {
-            note.title = draftTitle
-        }
-        copyTask?.cancel()
+    func save(in context: ModelContext) throws {
+        note.title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        note.content = draftContent
+        note.aiModel = draftModel
+        note.touch()
+        try context.save()
+        isEditing = false
     }
 
     // MARK: - Copy
@@ -61,5 +66,18 @@ final class PromptNoteDetailViewModel: ObservableObject {
             guard !Task.isCancelled else { return }
             didCopy = false
         }
+    }
+
+    func cleanup() {
+        copyTask?.cancel()
+        copyTask = nil
+    }
+
+    // MARK: - Private
+
+    private func restoreDraftsFromNote() {
+        draftTitle = note.title
+        draftContent = note.content
+        draftModel = note.aiModel
     }
 }

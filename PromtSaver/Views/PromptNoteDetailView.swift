@@ -5,8 +5,10 @@ import SwiftData
 struct PromptNoteDetailView: View {
     @StateObject private var viewModel: PromptNoteDetailViewModel
     @State private var contentAppeared = false
+    @State private var saveErrorMessage: String?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.modelContext) private var modelContext
 
     init(note: PromptNote) {
         _viewModel = StateObject(wrappedValue: PromptNoteDetailViewModel(note: note))
@@ -22,24 +24,52 @@ struct PromptNoteDetailView: View {
 
             // Header
             HStack {
-                AIModelBadge(model: Binding(
-                    get: { viewModel.note.aiModel },
-                    set: { viewModel.note.aiModel = $0 }
-                ))
+                if viewModel.isEditing {
+                    AIModelBadge(model: $viewModel.draftModel)
+                } else {
+                    AIModelBadge(model: viewModel.note.aiModel)
+                }
 
                 TextField("Title", text: $viewModel.draftTitle)
                     .font(.title3.bold())
                     .textFieldStyle(.plain)
+                    .disabled(!viewModel.isEditing)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+
+                Spacer(minLength: 12)
 
                 if viewModel.isEditing {
                     Button {
-                        withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.6)) {
-                            viewModel.toggleEdit()
+                        withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.8)) {
+                            viewModel.discardEdits()
                         }
+                    } label: {
+                        Image(systemName: "xmark.circle")
+                            .imageScale(.large)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        saveEdits()
                     } label: {
                         Image(systemName: "checkmark.circle.fill")
                             .imageScale(.large)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(viewModel.canSave ? .green : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!viewModel.canSave)
+                    .transition(.scale.combined(with: .opacity))
+                } else {
+                    Button {
+                        withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.6)) {
+                            viewModel.beginEditing()
+                        }
+                    } label: {
+                        Image(systemName: "pencil.circle")
+                            .imageScale(.large)
+                            .foregroundStyle(.primary)
                     }
                     .buttonStyle(.plain)
                     .transition(.scale.combined(with: .opacity))
@@ -51,6 +81,8 @@ struct PromptNoteDetailView: View {
                 TextEditor(text: $viewModel.draftContent)
                     .font(.system(.body, design: .monospaced))
                     .scrollContentBackground(.hidden)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
                     .transition(.opacity)
             } else {
                 ScrollView(.vertical) {
@@ -62,11 +94,6 @@ struct PromptNoteDetailView: View {
                         .opacity(contentAppeared ? 1 : 0)
                         .offset(y: contentAppeared ? 0 : 8)
                         .id(viewModel.note.content)
-                }
-                .onTapGesture {
-                    withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.6)) {
-                        viewModel.toggleEdit()
-                    }
                 }
                 .transition(.opacity)
                 .onAppear {
@@ -90,8 +117,36 @@ struct PromptNoteDetailView: View {
         .background(.regularMaterial)
         .cornerRadius(16, corners: [.topLeft, .topRight])
         .animation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isEditing)
+        .interactiveDismissDisabled(viewModel.hasUnsavedChanges)
         .onDisappear {
-            viewModel.persistIfNeeded()
+            viewModel.cleanup()
+        }
+        .alert("Save Failed", isPresented: saveErrorPresented) {
+            Button("OK", role: .cancel) {
+                saveErrorMessage = nil
+            }
+        } message: {
+            Text(saveErrorMessage ?? "Unable to save changes right now.")
+        }
+    }
+
+    private var saveErrorPresented: Binding<Bool> {
+        Binding(
+            get: { saveErrorMessage != nil },
+            set: { newValue in
+                if !newValue {
+                    saveErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private func saveEdits() {
+        do {
+            try viewModel.save(in: modelContext)
+        } catch {
+            modelContext.rollback()
+            saveErrorMessage = "Couldn't save changes to this prompt. \(error.localizedDescription)"
         }
     }
 }

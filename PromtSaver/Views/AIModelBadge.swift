@@ -1,15 +1,8 @@
 import SwiftUI
 
 struct AIModelBadge: View {
-    @Binding var model: AIModel
-    let tappable: Bool
-
-    @State private var isExpanded = false
-    @State private var visibleOptions: [AIModel] = []
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private let badgeSize: CGFloat = 28
-    private let staggerDelay: Double = 0.06
+    @Binding private var model: AIModel
+    private let tappable: Bool
 
     init(model: Binding<AIModel>) {
         self._model = model
@@ -21,88 +14,73 @@ struct AIModelBadge: View {
         self.tappable = false
     }
 
-    private var options: [AIModel] {
-        AIModel.allCases.filter { $0 != model }
+    var body: some View {
+        Group {
+            if tappable {
+                Menu {
+                    Picker("Model", selection: $model) {
+                        ForEach(AIModel.allCases, id: \.self) { option in
+                            Text(option.displayName)
+                                .tag(option)
+                        }
+                    }
+                } label: {
+                    badgeLabel(for: model, showsDisclosure: true)
+                }
+            } else {
+                badgeLabel(for: model, showsDisclosure: false)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("AI model")
+        .accessibilityValue(model.displayName)
+    }
+
+    private func badgeLabel(for aiModel: AIModel, showsDisclosure: Bool) -> some View {
+        HStack(spacing: 8) {
+            Image(aiModel.iconName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 22, height: 22)
+                .clipShape(Circle())
+
+            Text(aiModel.displayName)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+
+            if showsDisclosure {
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.thinMaterial, in: Capsule())
+        .contentShape(Capsule())
+    }
+}
+
+#Preview("Read Only") {
+    AIModelBadge(model: .claude)
+}
+
+#Preview("Editable") {
+    StatefulPreviewWrapper(AIModel.chatgpt) { model in
+        AIModelBadge(model: model)
+    }
+}
+
+private struct StatefulPreviewWrapper<Value, Content: View>: View {
+    @State private var value: Value
+    private let content: (Binding<Value>) -> Content
+
+    init(_ value: Value, @ViewBuilder content: @escaping (Binding<Value>) -> Content) {
+        _value = State(initialValue: value)
+        self.content = content
     }
 
     var body: some View {
-        HStack(spacing: 6) {
-            selectedBadge
-
-            ForEach(options, id: \.self) { option in
-                if visibleOptions.contains(option) {
-                    optionBadge(for: option)
-                        .transition(.scale.combined(with: .opacity))
-                }
-            }
-        }
-        .accessibilityLabel(model.displayName)
-    }
-
-    // MARK: - Selected badge
-    private var selectedBadge: some View {
-        Button {
-            guard tappable else { return }
-            if isExpanded {
-                collapse()
-            } else {
-                expand()
-            }
-        } label: {
-            badgeImage(for: model)
-        }
-        .buttonStyle(.plain)
-        .disabled(!tappable)
-    }
-
-    // MARK: - Option badge
-    private func optionBadge(for option: AIModel) -> some View {
-        Button {
-            let selected = option
-            collapse {
-                model = selected
-            }
-        } label: {
-            badgeImage(for: option)
-                .opacity(0.7)
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Expand with stagger
-    private func expand() {
-        isExpanded = true
-        for (index, option) in options.enumerated() {
-            let delay = reduceMotion ? 0 : Double(index) * staggerDelay
-            withAnimation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.6).delay(delay)) {
-                visibleOptions.append(option)
-            }
-        }
-    }
-
-    // MARK: - Collapse with reverse stagger
-    private func collapse(completion: (() -> Void)? = nil) {
-        let reversed = visibleOptions.reversed()
-        for (index, option) in reversed.enumerated() {
-            let delay = reduceMotion ? 0 : Double(index) * staggerDelay
-            withAnimation(reduceMotion ? .none : .spring(response: 0.15, dampingFraction: 0.9).delay(delay)) {
-                visibleOptions.removeAll { $0 == option }
-            }
-        }
-        let totalDuration = reduceMotion ? 0 : Double(reversed.count) * staggerDelay + 0.15
-        DispatchQueue.main.asyncAfter(deadline: .now() + totalDuration) {
-            isExpanded = false
-            completion?()
-        }
-    }
-
-    // MARK: - Shared image
-    private func badgeImage(for aiModel: AIModel) -> some View {
-        Image(aiModel.iconName)
-            .resizable()
-            .scaledToFit()
-            .frame(width: badgeSize, height: badgeSize)
-            .clipShape(Circle())
-            .contentShape(Circle())
+        content($value)
     }
 }

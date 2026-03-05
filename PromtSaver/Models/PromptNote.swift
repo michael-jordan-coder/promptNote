@@ -7,16 +7,31 @@ final class PromptNote {
     var title: String
     var content: String
     var aiModelRaw: String = "claude"
+    var createdAt: Date
+    var updatedAt: Date
 
     var aiModel: AIModel {
         get { AIModel(rawValue: aiModelRaw) ?? .claude }
         set { aiModelRaw = newValue.rawValue }
     }
 
-    init(id: UUID = UUID(), title: String, content: String, aiModel: AIModel = .claude) {
+    init(
+        id: UUID = UUID(),
+        title: String,
+        content: String,
+        aiModel: AIModel = .claude,
+        createdAt: Date = .now,
+        updatedAt: Date = .now
+    ) {
         self.id = id
         self.title = title
         self.content = content
         self.aiModelRaw = aiModel.rawValue
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    func touch(date: Date = .now) {
+        updatedAt = date
     }
 }

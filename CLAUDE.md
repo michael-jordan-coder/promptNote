@@ -17,20 +17,21 @@
 
 ```
 Persistence  → SwiftData @Model + ModelContainer (SQLite-backed, auto-save)
-Model        → PromptNote (@Model class, Identifiable), AIModel (enum, Codable)
+Model        → PromptNote (@Model class with timestamps + model context), AIModel (enum, Codable)
 ViewModels   → ContentViewModel (list/search/delete), PromptNoteCardViewModel (card interaction), PromptNoteDetailViewModel (edit), CreatePromptViewModel (create)
 Views        → ContentView (composition only), PromptNoteView (card presentation), DeleteConfirmationOverlay, AIModelBadge, detail & create sheets
 Entry Point  → PromtSaverApp → ContentView
 ```
 
-**Data flow**: `ModelContainer` (via `.modelContainer()`) → `ContentView` uses `@Query` to fetch notes → delegates filtering + delete orchestration to `ContentViewModel` → passes `PromptNote` reference to `PromptNoteView` + `PromptNoteCardViewModel` for card interaction state → `PromptNoteDetailViewModel` mutates `@Model` properties directly on save → SwiftData auto-persists → `@Query` reactively updates list.
+**Data flow**: `ModelContainer` (via `.modelContainer()`) → `ContentView` uses a recency-sorted `@Query` to fetch notes → delegates filtering + delete orchestration to `ContentViewModel` → passes `PromptNote` reference to `PromptNoteView` + `PromptNoteCardViewModel` for card interaction state → `PromptNoteDetailViewModel` stages edits and saves explicitly through `ModelContext` → `@Query` reactively updates the list.
 
-**Draft isolation**: ViewModel holds `draftTitle`/`draftContent` as separate `String` properties. Only written back to the `@Model` object on explicit save or dismiss — prevents per-keystroke disk writes.
+**Draft isolation**: Create and detail flows hold `draftTitle`/`draftContent` plus staged model selection in view-model state. Drafts are only written back to the `@Model` object on explicit save — prevents per-keystroke disk writes and silent persistence on dismiss.
 
 **Edit state machine**:
 ```
-VIEWING (pencil icon, CodeText) → tap edit → EDITING (checkmark icon, TextEditor)
-EDITING → tap save → VIEWING (updated content persisted via SwiftData)
+VIEWING (read-only title/model/content) → tap pencil → EDITING (draft title/model/content)
+EDITING → tap checkmark → VIEWING (changes persisted via `ModelContext.save()`)
+EDITING → tap cancel → VIEWING (draft changes discarded)
 ```
 
 ## File Map
@@ -40,21 +41,21 @@ PromtSaver/
 ├── App/
 │   └── PromtSaverApp.swift          — App entry point, .modelContainer(for: PromptNote.self)
 ├── Models/
-│   ├── PromptNote.swift              — @Model class (id, title, content, aiModel), SwiftData-persisted
+│   ├── PromptNote.swift              — @Model class (id, title, content, aiModel, createdAt, updatedAt), SwiftData-persisted
 │   └── AIModel.swift                 — enum AIModel (chatgpt, claude, gemini, cursor), Codable, tap-to-cycle
 ├── ViewModels/
 │   ├── ContentViewModel.swift        — List orchestration (search/filter, create sheet state, delete confirm flow, SwiftData delete)
 │   ├── PromptNoteCardViewModel.swift — Card interaction state (tap presentation, staged appear animation, copy feedback task)
-│   ├── PromptNoteDetailViewModel.swift — Edit/save state machine, draft fields, mutates @Model directly
-│   └── CreatePromptViewModel.swift   — Create flow drafts, validation, insert via ModelContext
+│   ├── PromptNoteDetailViewModel.swift — Explicit edit/save state machine, draft fields, save/discard actions
+│   └── CreatePromptViewModel.swift   — Create flow drafts, validation, explicit insert + save via ModelContext
 ├── Views/
-│   ├── ContentView.swift             — Root composition view, binds to ContentViewModel state/actions and renders list/sheets/overlay
+│   ├── ContentView.swift             — Root composition view, recency-sorted notes, search empty state, create sheet, delete overlay
 │   ├── EmptyStateView.swift          — Minimal CTA screen when no notes exist
-│   ├── CreatePromptView.swift        — Create sheet, AI model badge + title + content editor + save pill
+│   ├── CreatePromptView.swift        — Create sheet, AI model badge + title + content editor + explicit save/error handling
 │   ├── AIModelBadge.swift            — Reusable circle badge, tappable (Binding) or read-only
 │   ├── PromptNoteView.swift          — Card presentation, binds to PromptNoteCardViewModel for state and copy interactions
 │   ├── DeleteConfirmationOverlay.swift — Centered modal overlay for destructive delete confirmation
-│   └── PromptNoteDetailView.swift    — Modal sheet, AI model badge, edit/save toggle, CodeText ↔ TextEditor, copy pill
+│   └── PromptNoteDetailView.swift    — Modal sheet, explicit edit/cancel/save controls, staged model selection, CodeText ↔ TextEditor, copy pill
 ├── PreviewContent/
 │   ├── PromptNote+Mocks.swift        — #if DEBUG mock data (6 pro markdown system prompts)
 │   └── PromptNoteMockList.swift      — #if DEBUG mock aggregation + previewContainer
@@ -75,11 +76,12 @@ PromtSaver/
 ## Key Patterns & Conventions
 
 - **Threading**: `@MainActor` on all ViewModels; async work via managed `Task` (stored + cancelled on teardown)
-- **Persistence**: SwiftData `@Model` + `ModelContainer`, auto-save on property mutation; ViewModel draft pattern isolates edits until explicit save
+- **Persistence**: SwiftData `@Model` + `ModelContainer`; create, edit, and delete flows call `ModelContext.save()` explicitly for predictable user-facing error handling
 - **State management**: `@StateObject` in views, `@Published` in view models, `@Query` for data fetching
 - **Mock data**: Always wrapped in `#if DEBUG`
 - **UI**: Cards with rounded corners, monospaced fonts for code, `.regularMaterial` backgrounds, `.markdown` syntax highlight language
 - **Copy feedback**: 1.2-second checkmark animation after copying to pasteboard
+- **Library order**: Notes are sorted by `updatedAt` descending, then `createdAt` descending
 - **HighlightSwift modifier order**: `CodeText`-specific modifiers (`.highlightLanguage()`) must come *before* SwiftUI view modifiers (`.font()`, `.textSelection()`) — SwiftUI modifiers erase the `CodeText` type to `some View`
 - **Reduced motion**: All custom animations check `accessibilityReduceMotion` and fall back to `.none`
 
