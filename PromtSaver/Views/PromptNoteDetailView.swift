@@ -115,7 +115,7 @@ struct PromptNoteDetailView: View {
         .padding(.horizontal)
         .padding(.bottom, 16)
         .background(.regularMaterial)
-        .cornerRadius(16, corners: [.topLeft, .topRight])
+        .roundedCorners(16, corners: UIRectCorner([.topLeft, .topRight]))
         .animation(reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isEditing)
         .interactiveDismissDisabled(viewModel.hasUnsavedChanges)
         .onDisappear {
@@ -200,27 +200,10 @@ struct CopyPromptButton: View {
     }
 }
 
-#Preview {
-    struct PreviewWrapper: View {
-        @State private var showingSheet = true
-        var body: some View {
-            Color.clear
-                .sheet(isPresented: $showingSheet) {
-                    PromptNoteDetailView(
-                        note: .mockSystemSwiftUIEngineer
-                    )
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-                }
-        }
-    }
-    return PreviewWrapper()
-        .modelContainer(PromptNoteMockList.previewContainer)
-}
 
 // Extension for corner radius on specific corners
 fileprivate extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+    func roundedCorners(_ radius: CGFloat, corners: UIRectCorner) -> some View {
         clipShape( RoundedCorner(radius: radius, corners: corners) )
     }
 }
@@ -228,7 +211,6 @@ fileprivate extension View {
 fileprivate struct RoundedCorner: Shape {
     var radius: CGFloat = 16
     var corners: UIRectCorner = .allCorners
-
     func path(in rect: CGRect) -> Path {
         let path = UIBezierPath(
             roundedRect: rect,
@@ -238,3 +220,4 @@ fileprivate struct RoundedCorner: Shape {
         return Path(path.cgPath)
     }
 }
+

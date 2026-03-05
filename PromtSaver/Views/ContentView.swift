@@ -156,10 +156,7 @@ private struct SearchEmptyStateView: View {
     }
 }
 
-#Preview("With Notes") {
-    ContentView()
-        .modelContainer(PromptNoteMockList.previewContainer)
-}
+
 
 #Preview("Empty State") {
     ContentView()

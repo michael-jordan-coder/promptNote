@@ -106,17 +106,4 @@ struct PromptNoteView: View {
     }
 }
 
-#Preview("SwiftUI Engineer") {
-    PromptNoteView(note: .mockSystemSwiftUIEngineer)
-        .modelContainer(PromptNoteMockList.previewContainer)
-}
 
-#Preview("Code Reviewer") {
-    PromptNoteView(note: .mockSystemCodeReviewer)
-        .modelContainer(PromptNoteMockList.previewContainer)
-}
-
-#Preview("Product Copywriter") {
-    PromptNoteView(note: .mockSystemProductCopy)
-        .modelContainer(PromptNoteMockList.previewContainer)
-}

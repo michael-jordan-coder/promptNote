@@ -140,8 +140,3 @@ private struct SavePromptButtonStyle: ButtonStyle {
             )
     }
 }
-
-#Preview {
-    CreatePromptView()
-        .modelContainer(PromptNoteMockList.previewContainer)
-}

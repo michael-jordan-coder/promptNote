@@ -25,7 +25,7 @@ final class PromptNoteDetailViewModel: ObservableObject {
     }
 
     var canSave: Bool {
-        !draftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !resolvedTitle.isEmpty
     }
 
     var hasUnsavedChanges: Bool {
@@ -47,10 +47,12 @@ final class PromptNoteDetailViewModel: ObservableObject {
     }
 
     func save(in context: ModelContext) throws {
-        note.title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalTitle = resolvedTitle
+        note.title = finalTitle
         note.content = draftContent
         note.aiModel = draftModel
         note.touch()
+        draftTitle = finalTitle
         try context.save()
         isEditing = false
     }
@@ -79,5 +81,9 @@ final class PromptNoteDetailViewModel: ObservableObject {
         draftTitle = note.title
         draftContent = note.content
         draftModel = note.aiModel
+    }
+
+    private var resolvedTitle: String {
+        PromptNote.resolvedTitle(draftTitle: draftTitle, content: draftContent)
     }
 }

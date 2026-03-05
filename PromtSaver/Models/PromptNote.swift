@@ -34,4 +34,14 @@ final class PromptNote {
     func touch(date: Date = .now) {
         updatedAt = date
     }
+
+    static func resolvedTitle(draftTitle: String, content: String) -> String {
+        let trimmedTitle = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedTitle.isEmpty else { return trimmedTitle }
+
+        return content
+            .split(whereSeparator: \.isWhitespace)
+            .prefix(2)
+            .joined(separator: " ")
+    }
 }

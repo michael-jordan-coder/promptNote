@@ -11,18 +11,22 @@ final class CreatePromptViewModel: ObservableObject {
     @Published var selectedModel: AIModel = .claude
 
     var canSave: Bool {
-        !draftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !resolvedTitle.isEmpty
     }
 
     // MARK: - Actions
 
     func save(in context: ModelContext) throws {
         let note = PromptNote(
-            title: draftTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+            title: resolvedTitle,
             content: draftContent,
             aiModel: selectedModel
         )
         context.insert(note)
         try context.save()
+    }
+
+    private var resolvedTitle: String {
+        PromptNote.resolvedTitle(draftTitle: draftTitle, content: draftContent)
     }
 }
